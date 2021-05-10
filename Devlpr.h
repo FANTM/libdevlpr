@@ -11,7 +11,6 @@ class Devlpr
         int lastValue();
         float lastValueFiltered();
         float windowAvg();
-        float dummy;
     private:
         // general buffer bookkeeping
         static const byte BUFSIZE = 155; // size of filter

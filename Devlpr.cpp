@@ -24,7 +24,6 @@ void Devlpr::tick()
         // NOTE do we want to do some sort of remainder on
         // NOTE the micros - ie do we want to play catch up
         // NOTE or just make a best effort to run on sched?
-        dummy = lastValueFiltered();
     }
     // just pretend no time has passed since function start
     lastTickMicros = currMicros;
