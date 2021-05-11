@@ -13,7 +13,7 @@ class Devlpr
         float windowAvg();
     private:
         // general buffer bookkeeping
-        static const byte BUFSIZE = 155; // size of filter
+        static const byte BUFSIZE = 93; // size of filter
         byte bufInd;
         int buf[BUFSIZE];
         unsigned long lastTickMicros = 0;
