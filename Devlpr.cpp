@@ -4,7 +4,7 @@
 Devlpr::Devlpr()
 {
     bufInd = BUFSIZE - 1;
-    emgPin = A5;
+    emgPin = A0;
     emgRunningSum = 0;
 }
 
