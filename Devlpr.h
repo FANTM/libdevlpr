@@ -6,23 +6,24 @@
 class Devlpr
 {
     public:
-        Devlpr();
+        Devlpr(int pin=A0);
         void tick();
-        int lastValue();
-        float lastValueFiltered();
-        float windowAvg();
+        unsigned int lastValue();
+        int lastValueCentered();
+        unsigned int windowAvg();
     private:
         // general buffer bookkeeping
-        static const byte BUFSIZE = 93; // size of filter
+        static const byte BUFSIZE = 32; // power of 2 for integer avg calc
+        unsigned int buf[BUFSIZE];
         byte bufInd;
-        int buf[BUFSIZE];
-        unsigned long lastTickMicros = 0;
-        // emg tracking
+        // scheduling
         unsigned long MICROS_SCHED_EMG = 1000;
-        unsigned long microsSinceEMG;
-        unsigned long emgRunningSum;
+        unsigned long lastTickMicros = 0;
+        unsigned long microsSinceEMG = 0;
+        // emg tracking
         int emgPin;
-        int emgVal;
+        unsigned int emgVal; // ATMEGA boards have 10-bit ADC (0-1023)
+        unsigned int emgRunningSum; // if BUFSIZE is small, uint is fine
         void readEMG();
 };
 
