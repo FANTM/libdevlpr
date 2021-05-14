@@ -11,20 +11,28 @@ class Devlpr
         unsigned int lastValue();
         int lastValueCentered();
         unsigned int windowAvg();
+        int scheduleFunction(void (*f)(Devlpr *d), unsigned int millisPer);
     private:
-        // general buffer bookkeeping
-        static const byte BUFSIZE = 32; // power of 2 for integer avg calc
+        // emg buffer bookkeeping
+        static const byte BUFSIZE = 32; // power of 2 for fast integer avg calc
         unsigned int buf[BUFSIZE];
         byte bufInd;
-        // scheduling
-        unsigned long MICROS_SCHED_EMG = 1000;
-        unsigned long lastTickMicros = 0;
-        unsigned long microsSinceEMG = 0;
         // emg tracking
         int emgPin;
         unsigned int emgVal; // ATMEGA boards have 10-bit ADC (0-1023)
         unsigned int emgRunningSum; // if BUFSIZE is small, uint is fine
         void readEMG();
+        // scheduling
+        unsigned long lastTickMicros = 0;
+        // emg scheduling
+        static const unsigned long MICROS_SCHED_EMG = 1000;
+        unsigned long microsSinceEMG = 0;
+        // user function scheduling
+        static const byte FUNCMAX = 8;
+        void (*funcs[FUNCMAX])(Devlpr *d);
+        unsigned long schedMicros[FUNCMAX];
+        unsigned long microsSince[FUNCMAX];
+        byte numFuncs;
 };
 
 #endif

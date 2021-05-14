@@ -2,29 +2,19 @@
 
 Devlpr devlpr;
 
-void setup() {
-    Serial.begin(2000000);
+void printEMG(Devlpr *d) {
+    int result = d->lastValueCentered();
+    Serial.println(result);
 }
 
-unsigned long microsSincePrint = 0;
-unsigned long prevLoopMicros = 0;
-int result = 0;
+void setup() {
+    Serial.begin(2000000);
+    // add our print function to our DEVLPR schedule
+    // try to run once every 1ms
+    devlpr.scheduleFunction(printEMG, 1);
+}
+
 void loop() {
     // let the DEVLPR library do its job
     devlpr.tick();
-
-    // try to sample and print data at 1000Hz
-    unsigned long currMicros = micros();
-    unsigned long microsDelta = currMicros - prevLoopMicros;
-    microsSincePrint += microsDelta;
-    // has 1ms passed
-    if (microsSincePrint > 1000) {
-        // 1ms has passed, get the value
-        result = devlpr.lastValueCentered();
-        Serial.println(result);
-        // update our last filtered call
-        microsSincePrint = 0;
-    }
-    // update our last loop time
-    prevLoopMicros = currMicros;
 }

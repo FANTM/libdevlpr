@@ -6,6 +6,7 @@ Devlpr::Devlpr(int pin)
     emgPin = pin;
     emgRunningSum = 0;
     bufInd = BUFSIZE - 1;
+    numFuncs = 0;
 }
 
 void Devlpr::tick()
@@ -13,19 +14,38 @@ void Devlpr::tick()
     // check the current time
     unsigned long currMicros = micros();
     unsigned long microsDelta = currMicros - lastTickMicros;
-    // go through each function and see if we need to run it
+    //////////////////
+    // EMG Schedule //
+    //////////////////
     // accrue micros on the micros since last run
     microsSinceEMG += microsDelta;
-    // now see if enough time has passed to run this bad boy
+    // check if enough time has passed to read EMG
     if (microsSinceEMG > MICROS_SCHED_EMG) {
         readEMG();
         // and update micros since
         microsSinceEMG = 0;
-        // NOTE do we want to do some sort of remainder on
-        // NOTE the micros - ie do we want to play catch up
-        // NOTE or just make a best effort to run on sched?
+        // NOTE just a best effort to run on time
     }
-    // just pretend no time has passed since function start
+    ////////////////////////////
+    // User Function Schedule //
+    ////////////////////////////
+    // go through each function and check if it needs to run
+    for (byte i = 0; i < numFuncs; i++) {
+        // accrue micros on the micros since last run
+        microsSince[i] += microsDelta;
+        // check if enough time has passed to run it
+        if (microsSince[i] > schedMicros[i]) {
+            // run it
+            funcs[i](this);
+            // and update micros since
+            microsSince[i] = 0;
+            // NOTE just a best effort to run on time
+        }
+    }
+    ////////////////
+    // Wrap it up //
+    ////////////////
+    // pretend no time has passed since function start for best effort
     lastTickMicros = currMicros;
 }
 
@@ -44,6 +64,20 @@ int Devlpr::lastValueCentered()
     int lastVal = lastValue();
     int wAvg = windowAvg();
     return lastVal - wAvg;
+}
+
+int Devlpr::scheduleFunction(void (*f)(Devlpr *d), unsigned int millisPer)
+{
+    // check first if we are out of space to attach more functions
+    if (numFuncs >= FUNCMAX) {
+        return -1;
+    }
+    // otherwise add it in
+    funcs[numFuncs] = f;
+    schedMicros[numFuncs] = millisPer * 1000L;
+    microsSince[numFuncs] = 0;
+    numFuncs++;
+    return (numFuncs - 1);
 }
 
 void Devlpr::readEMG()
