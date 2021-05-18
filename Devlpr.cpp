@@ -66,6 +66,39 @@ int Devlpr::lastValueCentered()
     return lastVal - wAvg;
 }
 
+unsigned int Devlpr::windowPeakAmplitude()
+{
+    // use the window average as the reference point (should be close to DC offset)
+    int wAvg = windowAvg();
+    // and need to find the max absolute value from ref
+    unsigned int peak = 0;
+    for (int i = 0; i < BUFSIZE; i++) { // no need to start from bufInd
+        int currDiff = (int)buf[i] - wAvg;
+        int currAbs = abs(currDiff);
+        if (currAbs > peak) {
+            peak = currAbs;
+        }
+    }
+    return peak;
+}
+
+unsigned int Devlpr::windowPeakToPeakAmplitude()
+{
+    // and need to find the max absolute value from ref
+    unsigned int peak = 0;
+    unsigned int trough = 1023;
+    for (int i = 0; i < BUFSIZE; i++) { // no need to start from bufInd
+        unsigned int currVal = buf[i];
+        if (currVal > peak) {
+            peak = currVal;
+        }
+        if (currVal < trough) {
+            trough = currVal;
+        }
+    }
+    return peak - trough;
+}
+
 int Devlpr::scheduleFunction(void (*f)(Devlpr *d), unsigned int millisPer)
 {
     // check first if we are out of space to attach more functions

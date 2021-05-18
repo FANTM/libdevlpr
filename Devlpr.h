@@ -11,6 +11,8 @@ class Devlpr
         unsigned int lastValue();
         int lastValueCentered();
         unsigned int windowAvg();
+        unsigned int windowPeakAmplitude();
+        unsigned int windowPeakToPeakAmplitude();
         int scheduleFunction(void (*f)(Devlpr *d), unsigned int millisPer);
     private:
         // emg buffer bookkeeping

@@ -3,7 +3,7 @@
 Devlpr devlpr;
 
 void printEMG(Devlpr *d) {
-    int result = d->lastValueCentered();
+    int result = d->windowPeakToPeakAmplitude();
     Serial.println(result);
 }
 
