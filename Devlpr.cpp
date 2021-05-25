@@ -20,10 +20,10 @@ void Devlpr::tick()
     // accrue micros on the micros since last run
     microsSinceEMG += microsDelta;
     // check if enough time has passed to read EMG
-    if (microsSinceEMG > MICROS_SCHED_EMG) {
+    if (microsSinceEMG >= MICROS_SCHED_EMG) {
         readEMG();
         // and update micros since
-        microsSinceEMG = 0;
+        microsSinceEMG = 0L;
         // NOTE just a best effort to run on time
     }
     ////////////////////////////
@@ -34,11 +34,11 @@ void Devlpr::tick()
         // accrue micros on the micros since last run
         microsSince[i] += microsDelta;
         // check if enough time has passed to run it
-        if (microsSince[i] > schedMicros[i]) {
+        if (microsSince[i] >= schedMicros[i]) {
             // run it
             funcs[i](this);
             // and update micros since
-            microsSince[i] = 0;
+            microsSince[i] = 0L;
             // NOTE just a best effort to run on time
         }
     }

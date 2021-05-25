@@ -25,10 +25,10 @@ class Devlpr
         unsigned int emgRunningSum; // if BUFSIZE is small, uint is fine
         void readEMG();
         // scheduling
-        unsigned long lastTickMicros = 0;
+        unsigned long lastTickMicros = 0L;
         // emg scheduling
-        static const unsigned long MICROS_SCHED_EMG = 1000;
-        unsigned long microsSinceEMG = 0;
+        static const unsigned long MICROS_SCHED_EMG = 1000L;
+        unsigned long microsSinceEMG = 0L;
         // user function scheduling
         static const byte FUNCMAX = 8;
         void (*funcs[FUNCMAX])(Devlpr *d);
