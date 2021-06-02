@@ -7,11 +7,16 @@ void printEMG(Devlpr *d) {
     Serial.println(result);
 }
 
+void writeFlex(Devlpr *d) {
+    Serial.println("FLEX");
+}
+
 void setup() {
     Serial.begin(2000000);
     // add our print function to our DEVLPR schedule
     // try to run once every 1ms
-    devlpr.scheduleFunction(printEMG, 1);
+    //devlpr.scheduleFunction(printEMG, 1);
+    devlpr.setFlexCallback(writeFlex);
 }
 
 void loop() {

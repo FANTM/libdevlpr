@@ -14,6 +14,8 @@ class Devlpr
         unsigned int windowPeakAmplitude();
         unsigned int windowPeakToPeakAmplitude();
         int scheduleFunction(void (*f)(Devlpr *d), unsigned int millisPer);
+        void setFlexCallback(void (*f)(Devlpr *d), float threshMult=1.5,
+            unsigned int millisCooldown=400);
     private:
         // emg buffer bookkeeping
         static const byte BUFSIZE = 32; // power of 2 for fast integer avg calc
@@ -29,6 +31,16 @@ class Devlpr
         // emg scheduling
         static const unsigned long MICROS_SCHED_EMG = 1000L;
         unsigned long microsSinceEMG = 0L;
+        // onFlex scheduling
+        static const unsigned long MICROS_SCHED_FLEX = 1000L * BUFSIZE; // once per buffer fill
+        unsigned long microsSinceFlexCheck = 0L;
+        // flex tracking
+        void (*onFlexFunc)(Devlpr *d) = NULL;
+        void flexCheck(unsigned long currMicros);
+        unsigned long prevFlexMicros = 0L;
+        unsigned int prevPeakToPeak = 0L;
+        unsigned long flexCooldownMicros = 400000L; // 400ms
+        float flexThreshMultiple = 1.5;
         // user function scheduling
         static const byte FUNCMAX = 8;
         void (*funcs[FUNCMAX])(Devlpr *d);

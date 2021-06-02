@@ -26,6 +26,17 @@ void Devlpr::tick()
         microsSinceEMG = 0L;
         // NOTE just a best effort to run on time
     }
+    ////////////////
+    // Flex Check //
+    ////////////////
+    // accrue micros on the micros since last check
+    microsSinceFlexCheck += microsDelta;
+    // check if enough time has passed to check for a flex
+    if (microsSinceFlexCheck >= MICROS_SCHED_FLEX) {
+        flexCheck(currMicros);
+        // and update micros since
+        microsSinceFlexCheck = 0L;
+    }
     ////////////////////////////
     // User Function Schedule //
     ////////////////////////////
@@ -113,6 +124,16 @@ int Devlpr::scheduleFunction(void (*f)(Devlpr *d), unsigned int millisPer)
     return (numFuncs - 1);
 }
 
+void Devlpr::setFlexCallback(void (*f)(Devlpr *d), float threshMult,
+    unsigned int millisCooldown)
+{
+    // set the callback
+    onFlexFunc = f;
+    // and the parameters
+    flexThreshMultiple = threshMult;
+    flexCooldownMicros = millisCooldown * 1000L;
+}
+
 void Devlpr::readEMG()
 {
     // want bufInd to sit on the most recent value until tick
@@ -128,4 +149,23 @@ void Devlpr::readEMG()
     emgRunningSum = emgRunningSum - buf[bufInd] + emgVal;
     // now replace
     buf[bufInd] = emgVal;
+}
+
+void Devlpr::flexCheck(unsigned long currMicros)
+{
+    // to check cooldown
+    unsigned long microsDelta = currMicros - prevFlexMicros;
+    // the actual flex check
+    unsigned int peakToPeakThresh = prevPeakToPeak * flexThreshMultiple;
+    unsigned int currPeakToPeak = windowPeakToPeakAmplitude();
+    // need an attached function, cooldown passed, and a peak change
+    if (onFlexFunc && microsDelta >= flexCooldownMicros &&
+        currPeakToPeak >= peakToPeakThresh) {
+        // hit the callback
+        onFlexFunc(this);
+        // and update the previous confirmed flex
+        prevFlexMicros = currMicros;
+    }
+    // need to update the current peak-to-peak for next time
+    prevPeakToPeak = currPeakToPeak;
 }
