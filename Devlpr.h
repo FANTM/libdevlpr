@@ -1,6 +1,8 @@
 #ifndef Devlpr_h
 #define Devlpr_h
 
+#define LIBDEVLPR_VERSION "0.1.0"
+
 #include "Arduino.h"
 
 class Devlpr
