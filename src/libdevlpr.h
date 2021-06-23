@@ -1,7 +1,7 @@
-#ifndef libdevlpr_h
-#define libdevlpr_h
+#ifndef Libdevlpr_h
+#define Libdevlpr_h
 
-#define LIBDEVLPR_VERSION "0.1.3"
+#define LIBDEVLPR_VERSION "0.1.4"
 
 #include "Devlpr.h"
 
