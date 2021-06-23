@@ -1,0 +1,18 @@
+# Syntax Coloring Map For Libdevlpr
+
+# Datatypes (KEYWORD1)
+Devlpr	KEYWORD1
+
+# Methods and Functions (KEYWORD2)
+tick	KEYWORD2
+lastValue	KEYWORD2
+lastValueCentered	KEYWORD2
+windowAvg	KEYWORD2
+windowPeakAmplitude	KEYWORD2
+windowPeakToPeakAmplitude	KEYWORD2
+scheduleFunction	KEYWORD2
+setFlexCallback	KEYWORD2
+
+# Instances (KEYWORD2)
+
+# Constants (LITERAL1)
