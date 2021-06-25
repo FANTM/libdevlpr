@@ -1,4 +1,4 @@
-#include <libdevlpr.h>
+#include <Libdevlpr.h>
 
 // create a DEVLPR object with the pin we have connected on the shield
 // can create multiple for different pins if stacking shields
