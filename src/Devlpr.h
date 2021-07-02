@@ -10,6 +10,7 @@ class Devlpr
         void tick();
         unsigned int lastValue();
         int lastValueCentered();
+        int lastValueFiltered();
         unsigned int windowAvg();
         unsigned int windowPeakAmplitude();
         unsigned int windowPeakToPeakAmplitude();
@@ -26,6 +27,18 @@ class Devlpr
         unsigned int emgVal; // ATMEGA boards have 10-bit ADC (0-1023)
         unsigned int emgRunningSum; // if BUFSIZE is small, uint is fine
         void readEMG();
+        // emg filtering
+        void calcFiltered();
+        int lastFiltVal;
+        static const byte N_SECTIONS = 2; // 2nd order
+        float notch60[2][6] = { // 2nd order Butterworth notch for 60Hz
+            {0.95654323 ,-1.77962093 ,0.95654323 ,1. ,-1.80093517 ,0.95415195},
+            {1.         ,-1.860471   ,1.         ,1. ,-1.83739919 ,0.95894143}
+        };
+        float z[2][2] = { // maintain recurrent state
+            {0.0, 0.0},
+            {0.0, 0.0}
+        };
         // scheduling
         unsigned long lastTickMicros = 0L;
         // emg scheduling

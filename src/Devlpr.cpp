@@ -7,6 +7,7 @@ Devlpr::Devlpr(int pin)
     emgRunningSum = 0;
     bufInd = BUFSIZE - 1;
     numFuncs = 0;
+    lastFiltVal = 0;
 }
 
 void Devlpr::tick()
@@ -75,6 +76,11 @@ int Devlpr::lastValueCentered()
     int lastVal = lastValue();
     int wAvg = windowAvg();
     return lastVal - wAvg;
+}
+
+int Devlpr::lastValueFiltered()
+{
+    return lastFiltVal;
 }
 
 unsigned int Devlpr::windowPeakAmplitude()
@@ -149,6 +155,8 @@ void Devlpr::readEMG()
     emgRunningSum = emgRunningSum - buf[bufInd] + emgVal;
     // now replace
     buf[bufInd] = emgVal;
+    // and we need to calculate the filtered value every sample
+    calcFiltered();
 }
 
 void Devlpr::flexCheck(unsigned long currMicros)
@@ -168,4 +176,20 @@ void Devlpr::flexCheck(unsigned long currMicros)
     }
     // need to update the current peak-to-peak for next time
     prevPeakToPeak = currPeakToPeak;
+}
+
+void Devlpr::calcFiltered()
+{
+    // NOTE: IIR filter is recurrent and needs to run every tick to work
+    // we need to operate on 0-centered(ish) data and we will be doing float math
+    float xn = lastValueCentered();
+    // compute the recurrence by section
+    for (int s = 0; s < N_SECTIONS; s++) {
+        float xn_tmp = xn;
+        xn = notch60[s][0] * xn_tmp + z[s][0];
+        z[s][0] = (notch60[s][1] * xn_tmp - notch60[s][4] * xn + z[s][1]);
+        z[s][1] = (notch60[s][2] * xn_tmp - notch60[s][5] * xn);
+    }
+    // and store our most recent value for reference later (as an int now)
+    lastFiltVal = (int)xn;
 }
