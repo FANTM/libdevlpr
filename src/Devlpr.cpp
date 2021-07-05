@@ -1,13 +1,16 @@
 #include "Arduino.h"
 #include "Devlpr.h"
 
-Devlpr::Devlpr(int pin)
+Devlpr::Devlpr(int pin, int filterType)
 {
     emgPin = pin;
-    emgRunningSum = 0;
+    rawEmgRunningSum = 0;
     bufInd = BUFSIZE - 1;
     numFuncs = 0;
-    lastFiltVal = 0;
+    if (filterType != FILTER_NONE) {
+        doFilter = true;
+        initFilter(filterType);
+    }
 }
 
 void Devlpr::tick()
@@ -22,7 +25,10 @@ void Devlpr::tick()
     microsSinceEMG += microsDelta;
     // check if enough time has passed to read EMG
     if (microsSinceEMG >= MICROS_SCHED_EMG) {
+        unsigned long myStartMicros = micros();
         readEMG();
+        unsigned long myDeltaMicros = micros() - myStartMicros;
+        Serial.println(myDeltaMicros);
         // and update micros since
         microsSinceEMG = 0L;
         // NOTE just a best effort to run on time
@@ -61,56 +67,86 @@ void Devlpr::tick()
     lastTickMicros = currMicros;
 }
 
-unsigned int Devlpr::lastValue()
+int Devlpr::lastValue(bool filtered)
 {
+    if (filtered) {
+        return filterBuf[bufInd];
+    }
     return buf[bufInd];
 }
 
-unsigned int Devlpr::windowAvg()
+int Devlpr::windowAvg(bool filtered)
 {
-    return emgRunningSum / BUFSIZE;
+    // int math should be good enough
+    if (filtered) {
+        return filterEmgRunningSum / BUFSIZE;
+    }
+    return rawEmgRunningSum / BUFSIZE;
 }
 
-int Devlpr::lastValueCentered()
+int Devlpr::lastValueCentered(bool filtered)
 {
-    int lastVal = lastValue();
-    int wAvg = windowAvg();
+    int lastVal = lastValue(filtered);
+    int wAvg = windowAvg(filtered);
     return lastVal - wAvg;
 }
 
-int Devlpr::lastValueFiltered()
-{
-    return lastFiltVal;
-}
-
-unsigned int Devlpr::windowPeakAmplitude()
+int Devlpr::windowPeakAmplitude(bool filtered)
 {
     // use the window average as the reference point (should be close to DC offset)
-    int wAvg = windowAvg();
+    int wAvg = windowAvg(filtered);
     // and need to find the max absolute value from ref
-    unsigned int peak = 0;
-    for (int i = 0; i < BUFSIZE; i++) { // no need to start from bufInd
-        int currDiff = (int)buf[i] - wAvg;
-        int currAbs = abs(currDiff);
-        if (currAbs > peak) {
-            peak = currAbs;
+    int peak = 0;
+    // hear me out, I'm duplicating the loop to not determine the buffer each iteration
+    // if it helps, I feel just awful about it
+    if (filtered) {
+        for (int i = 0; i < BUFSIZE; i++) { // no need to start from bufInd
+            int currDiff = filterBuf[i] - wAvg;
+            int currAbs = abs(currDiff);
+            if (currAbs > peak) {
+                peak = currAbs;
+            }
+        }
+    }
+    else {
+        for (int i = 0; i < BUFSIZE; i++) { // no need to start from bufInd
+            int currDiff = buf[i] - wAvg;
+            int currAbs = abs(currDiff);
+            if (currAbs > peak) {
+                peak = currAbs;
+            }
         }
     }
     return peak;
 }
 
-unsigned int Devlpr::windowPeakToPeakAmplitude()
+int Devlpr::windowPeakToPeakAmplitude(bool filtered)
 {
     // and need to find the max absolute value from ref
-    unsigned int peak = 0;
-    unsigned int trough = 1023;
-    for (int i = 0; i < BUFSIZE; i++) { // no need to start from bufInd
-        unsigned int currVal = buf[i];
-        if (currVal > peak) {
-            peak = currVal;
+    int peak = 0;
+    int trough = 1023;
+    // hear me out, I'm duplicating the loop to not determine the buffer each iteration
+    // if it helps, I feel just awful about it
+    if (filtered) {
+        for (int i = 0; i < BUFSIZE; i++) { // no need to start from bufInd
+            int currVal = filterBuf[i];
+            if (currVal > peak) {
+                peak = currVal;
+            }
+            if (currVal < trough) {
+                trough = currVal;
+            }
         }
-        if (currVal < trough) {
-            trough = currVal;
+    }
+    else {
+        for (int i = 0; i < BUFSIZE; i++) { // no need to start from bufInd
+            int currVal = buf[i];
+            if (currVal > peak) {
+                peak = currVal;
+            }
+            if (currVal < trough) {
+                trough = currVal;
+            }
         }
     }
     return peak - trough;
@@ -149,14 +185,17 @@ void Devlpr::readEMG()
     if (bufInd >= BUFSIZE) { // faster than mod
         bufInd = 0;
     }
-    // read our new value
+    // read our new raw value
     emgVal = analogRead(emgPin);
     // before replacing the prev tail value though, update running sum
-    emgRunningSum = emgRunningSum - buf[bufInd] + emgVal;
+    rawEmgRunningSum = rawEmgRunningSum - buf[bufInd];
+    rawEmgRunningSum = rawEmgRunningSum + emgVal;
     // now replace
     buf[bufInd] = emgVal;
-    // and we need to calculate the filtered value every sample
-    calcFiltered();
+    // and handle all the filtering if set
+    if (doFilter) {
+        handleFiltered();
+    }
 }
 
 void Devlpr::flexCheck(unsigned long currMicros)
@@ -164,8 +203,9 @@ void Devlpr::flexCheck(unsigned long currMicros)
     // to check cooldown
     unsigned long microsDelta = currMicros - prevFlexMicros;
     // the actual flex check
-    unsigned int peakToPeakThresh = prevPeakToPeak * flexThreshMultiple;
-    unsigned int currPeakToPeak = windowPeakToPeakAmplitude();
+    int peakToPeakThresh = prevPeakToPeak * flexThreshMultiple;
+    // if filter is configured, base it on filtered values
+    int currPeakToPeak = windowPeakToPeakAmplitude(doFilter);
     // need an attached function, cooldown passed, and a peak change
     if (onFlexFunc && microsDelta >= flexCooldownMicros &&
         currPeakToPeak >= peakToPeakThresh) {
@@ -178,18 +218,63 @@ void Devlpr::flexCheck(unsigned long currMicros)
     prevPeakToPeak = currPeakToPeak;
 }
 
-void Devlpr::calcFiltered()
+void Devlpr::handleFiltered()
 {
     // NOTE: IIR filter is recurrent and needs to run every tick to work
     // we need to operate on 0-centered(ish) data and we will be doing float math
-    float xn = lastValueCentered();
+    float xn = lastValueCentered(false); // needs to be based on raw data
     // compute the recurrence by section
     for (int s = 0; s < N_SECTIONS; s++) {
         float xn_tmp = xn;
-        xn = notch60[s][0] * xn_tmp + z[s][0];
-        z[s][0] = (notch60[s][1] * xn_tmp - notch60[s][4] * xn + z[s][1]);
-        z[s][1] = (notch60[s][2] * xn_tmp - notch60[s][5] * xn);
+        xn = filter[s][0] * xn_tmp + z[s][0];
+        z[s][0] = (filter[s][1] * xn_tmp - filter[s][4] * xn + z[s][1]);
+        z[s][1] = (filter[s][2] * xn_tmp - filter[s][5] * xn);
     }
-    // and store our most recent value for reference later (as an int now)
-    lastFiltVal = (int)xn;
+    // and store our filtered value for reference later (as an int now)
+    int filtVal = (int)xn;
+    // before replacing the prev tail value though, update running sum
+    filterEmgRunningSum = filterEmgRunningSum - filterBuf[bufInd];
+    filterEmgRunningSum = filterEmgRunningSum + filtVal;
+    // now replace
+    filterBuf[bufInd] = filtVal;
+}
+
+void Devlpr::initFilter(int filterType) {
+    // NOTE: this is just a dumb way to not have to reference a different
+    // filter array depending on the filter type selected at the start
+    
+    // 2nd order Butterworth notch for 50Hz
+    // {{0.95654323, -1.82035157, 0.95654323, 1., -1.84458768, 0.9536256},
+    // { 1.        , -1.90305207, 1.        , 1., -1.87701816, 0.95947072}}
+    // 2nd order Butterworth notch for 60Hz
+    // {{0.95654323, -1.77962093, 0.95654323, 1., -1.80093517, 0.95415195},
+    // { 1.        , -1.860471  , 1.        , 1., -1.83739919, 0.95894143}}
+    if (filterType == FILTER_50HZ) {
+        filter[0][0] = 0.95654323;
+        filter[0][1] = -1.82035157;
+        filter[0][2] = 0.95654323;
+        filter[0][3] = 1.;
+        filter[0][4] = -1.84458768;
+        filter[0][5] = 0.9536256;
+        filter[1][0] = 1.;
+        filter[1][1] = -1.90305207;
+        filter[1][2] = 1.;
+        filter[1][3] = 1.;
+        filter[1][4] = -1.87701816;
+        filter[1][5] = 0.95947072;
+    }
+    if (filterType == FILTER_60HZ) {
+        filter[0][0] = 0.95654323;
+        filter[0][1] = -1.77962093;
+        filter[0][2] = 0.95654323;
+        filter[0][3] = 1.;
+        filter[0][4] = -1.80093517;
+        filter[0][5] = 0.95415195;
+        filter[1][0] = 1.;
+        filter[1][1] = -1.860471;
+        filter[1][2] = 1.;
+        filter[1][3] = 1.;
+        filter[1][4] = -1.83739919;
+        filter[1][5] = 0.95894143;
+    }
 }

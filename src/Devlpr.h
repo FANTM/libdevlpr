@@ -3,42 +3,45 @@
 
 #include "Arduino.h"
 
+#define FILTER_NONE 0
+#define FILTER_50HZ 1
+#define FILTER_60HZ 2
+
 class Devlpr
 {
     public:
-        Devlpr(int pin=A0);
+        Devlpr(int pin=A0, int filterType=FILTER_NONE);
         void tick();
-        unsigned int lastValue();
-        int lastValueCentered();
-        int lastValueFiltered();
-        unsigned int windowAvg();
-        unsigned int windowPeakAmplitude();
-        unsigned int windowPeakToPeakAmplitude();
+        int lastValue(bool filtered=false);
+        int lastValueCentered(bool filtered=false);
+        int windowAvg(bool filtered=false);
+        int windowPeakAmplitude(bool filtered=false);
+        int windowPeakToPeakAmplitude(bool filtered=false);
         int scheduleFunction(void (*f)(Devlpr *d), unsigned int millisPer);
         void setFlexCallback(void (*f)(Devlpr *d), float threshMult=1.5,
             unsigned int millisCooldown=400);
     private:
         // emg buffer bookkeeping
         static const byte BUFSIZE = 32; // power of 2 for fast integer avg calc
-        unsigned int buf[BUFSIZE];
+        int buf[BUFSIZE];
         byte bufInd;
         // emg tracking
         int emgPin;
-        unsigned int emgVal; // ATMEGA boards have 10-bit ADC (0-1023)
-        unsigned int emgRunningSum; // if BUFSIZE is small, uint is fine
+        int emgVal; // ATMEGA boards have 10-bit ADC (0-1023)
+        int rawEmgRunningSum; // if BUFSIZE is <= 32, int is fine (max sum=32*1023)
         void readEMG();
         // emg filtering
-        void calcFiltered();
-        int lastFiltVal;
+        void handleFiltered();
+        void initFilter(int filterType); // this is dumb
+        bool doFilter = false;
         static const byte N_SECTIONS = 2; // 2nd order
-        float notch60[2][6] = { // 2nd order Butterworth notch for 60Hz
-            {0.95654323 ,-1.77962093 ,0.95654323 ,1. ,-1.80093517 ,0.95415195},
-            {1.         ,-1.860471   ,1.         ,1. ,-1.83739919 ,0.95894143}
-        };
+        float filter[2][6];
         float z[2][2] = { // maintain recurrent state
             {0.0, 0.0},
             {0.0, 0.0}
         };
+        int filterBuf[BUFSIZE]; // need to keep a separate buffer for filtered values
+        int filterEmgRunningSum; // if BUFSIZE is <= 32, int is fine
         // scheduling
         unsigned long lastTickMicros = 0L;
         // emg scheduling
