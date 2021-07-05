@@ -25,10 +25,7 @@ void Devlpr::tick()
     microsSinceEMG += microsDelta;
     // check if enough time has passed to read EMG
     if (microsSinceEMG >= MICROS_SCHED_EMG) {
-        unsigned long myStartMicros = micros();
         readEMG();
-        unsigned long myDeltaMicros = micros() - myStartMicros;
-        Serial.println(myDeltaMicros);
         // and update micros since
         microsSinceEMG = 0L;
         // NOTE just a best effort to run on time
