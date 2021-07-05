@@ -5,6 +5,7 @@ Devlpr::Devlpr(int pin, int filterType)
 {
     emgPin = pin;
     rawEmgRunningSum = 0;
+    filterEmgRunningSum = 0;
     bufInd = BUFSIZE - 1;
     numFuncs = 0;
     if (filterType != FILTER_NONE) {
