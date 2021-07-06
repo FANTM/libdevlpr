@@ -12,7 +12,7 @@ void printEMG(Devlpr *d) {
     // we will print four values each time: -1024, 1024, filtered, and raw EMG
     // the -1024 and 1024 simply give us a top and bottom line in the plotter
     Serial.print("-1024 1024 ");
-    Serial.println(filtered);
+    Serial.print(filtered);
     Serial.print(" ");
     Serial.println(raw);
 }
